@@ -1,0 +1,45 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//   Authors: Camas
+//   Version: 1.0.0
+//   Purpose: Read serverInfo2.dat used by Among Us
+// File Mask: serverInfo2.dat
+//------------------------------------------------
+
+typedef struct {
+    ubyte len;
+    char value[len]<optimize=false>;
+} String <read=StringRead>;
+
+string StringRead(String &s) {
+    return s.value;
+}
+
+long _version;
+long _unknown;
+long entry_count;
+
+typedef struct {
+    ubyte ip[4]<optimize=false>;
+    short port;
+} Address <read=AddressRead>;
+
+string AddressRead(Address &a) {
+    local string s;
+    s = SPrintf(s, "%u.%u.%u.%u:%u", a.ip[0], a.ip[1], a.ip[2], a.ip[3], a.port);
+    return s;
+}
+
+typedef struct {
+    String name;
+    Address address;
+    long unknown;
+} sub_entry;
+
+struct {
+    String name;
+    String ip_string;
+    uint sub_count;
+    sub_entry sub_entries[sub_count]<optimize=false>;
+} entry[entry_count]<optimize=false>;

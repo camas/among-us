@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "client",
+    "common",
+    #"dissector",
+    #"epan-sys",
+    "dump-transformer",
+]

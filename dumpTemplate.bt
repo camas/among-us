@@ -1,0 +1,584 @@
+//------------------------------------------------
+//--- 010 Editor v10.0.2 Binary Template
+//
+//   Authors: Camas
+//   Version: 0.0.1
+//   Purpose: Read among us packets
+//------------------------------------------------
+
+/// Might not be necessary but signifies intent
+LittleEndian();
+
+/// locals for sending info upwards
+local ubyte to_server_loc;
+local uint au_packet_end;
+
+/// .NET Packed Int/String
+
+typedef struct {
+    local uint value = 0;
+    local ubyte offset = 0;
+    local ubyte data2 = 0;
+    while (true) {
+        ubyte data;
+        if (data >= 128 && offset < 4) {
+            data2 = data & 127;
+            value |= (((uint)data2) << (offset * 7));
+            offset++;
+        } else {
+            value |= (((uint)data) << (offset * 7));
+            break;
+        }
+    }
+} PackedInt <read=PackedIntRead>;
+
+string PackedIntRead(PackedInt &p) {
+    string s;
+    SPrintf(s,"%d", p.value);
+    return s;
+}
+
+typedef struct {
+    PackedInt len<fgcolor=0xff00ff>;
+    char value[len.value]<fgcolor=0xffbbff>;
+} String <read=StringRead>;
+
+string StringRead(String &s) {
+    return s.value;
+}
+
+/// Among Us data
+
+typedef struct JoinServerPacket {
+    char game_id[4];
+    PackedInt owned_maps;
+};
+
+typedef struct DisconnectReasonPacket {
+    uint reason;
+    if (reason == 8) {
+        String custom_message;
+    }
+};
+
+typedef struct PlayerJoinedPacket {
+    char game_id[4];
+    int player_id;
+    int host_id;
+};
+
+typedef struct ServerInfo {
+    ushort length;
+    ubyte tag;
+    String name;
+    ubyte ip[4];
+    ushort port;
+    PackedInt connection_failures;
+};
+
+typedef struct ServerListPacket {
+    byte ignored;
+    PackedInt count;
+    ServerInfo serverInfos[count.value]<optimize=false>;
+};
+
+enum <uint> Languages {
+		All = 0U,
+		AllLanguages = 31U,
+		English = 1U,
+		Spanish = 2U,
+		Korean = 4U,
+		Russian = 8U,
+		Portuguese = 16U
+};
+
+typedef struct GameOptionsData {
+    ubyte data_version;
+    ubyte max_players;
+    Languages language;
+    byte mapId;
+    float playerSpeed;
+    float crewLight;
+    float imposterLight;
+    float killCooldown;
+    ubyte numCommonTasks;
+    ubyte numLongTasks;
+    ubyte numShortTasks;
+    int numEmergencyMeetings;
+    byte numImposters;
+    byte killDistance;
+    int discussionTime;
+    int votingTime;
+    ubyte isDefaults;
+    ubyte emergencyCooldown;
+};
+
+typedef struct ChangeServerPacket {
+    ubyte ip[4]<optimize=false>;
+    ushort port;
+};
+
+typedef struct JoinedGamePacket {
+    char game_id[4];
+    uint client_id;
+    uint host_id;
+    PackedInt player_count;
+    if (player_count.value > 0) {
+        PackedInt players[player_count.value]<optimize=false>;
+    }
+};
+
+typedef struct AlterGameInfoPacket {
+    char game_id[4];
+    byte to_alter;
+    if (to_alter == 1) {
+        byte is_public;
+    }
+};
+
+typedef struct InnerNetObj{
+    PackedInt net_id<fgcolor=0xff00ff>;
+    ushort data_len<fgcolor=0xa0f0a0>;
+    ubyte tag<fgcolor=0x04e404>;
+    local uint end = FTell() + data_len;
+    if (FTell() < end) {
+        ubyte skipped[end - FTell()]<fgcolor=0x00bbbb>;
+    }
+};
+
+enum <ubyte> GameInfoType {
+    UpdateData = 1,
+    RPC = 2,
+    CreateFromPrefab= 4,
+    Destroy = 5,
+    ChangeScene = 6,
+    ClientReady = 7,
+};
+
+typedef struct PlayerData {
+    ubyte id;
+    String name;
+    ubyte color;
+    PackedInt hat_id;
+    PackedInt skin_id;
+    PackedInt pet_id;
+    ubyte flags;
+    ubyte task_count;
+    if (task_count > 0) {
+        PackedInt task_id;
+        ubyte task_complete;
+    }
+};
+
+typedef struct GameData (ubyte init) {
+    // GameData,Unknown
+    PackedInt net_id<fgcolor=0xff00ff>;
+    ushort data_len<fgcolor=0xa0f0a0>;
+    ubyte tag<fgcolor=0x04e404>;
+    PackedInt player_count;
+    if (player_count.value > 0) {
+        PlayerData player_data[player_count.value]<optimize=false>;
+    }
+    PackedInt net_id_2<fgcolor=0xff00ff>;
+    ushort data_len_2<fgcolor=0xa0f0a0>;
+    ubyte tag_2<fgcolor=0x04e404>;
+    // Possibly completed tasks?
+    //ubyte unknown;
+    
+    // Vote ban system
+    ubyte any_votes;
+    if (any_votes != 0) {
+        ubyte error_untested[-1];
+    }
+};
+
+typedef struct Vector2 {
+    ushort v1;
+    ushort v2;
+};
+
+typedef struct PlayerInfo (ubyte init) {
+    // PlayerControl,PlayerPhysics,CustomNetworkTransform
+    PackedInt net_id<fgcolor=0xff00ff>;
+    ushort data_len<fgcolor=0xa0f0a0>;
+    ubyte tag<fgcolor=0x04e404>;
+    if (init == 1) {
+        ubyte is_new;
+    }
+    ubyte player_id;
+    PackedInt net_id_2<fgcolor=0xff00ff>;
+    ushort data_len_2<fgcolor=0xa0f0a0>;
+    ubyte tag_2<fgcolor=0x04e404>;
+    PackedInt net_id_3<fgcolor=0xff00ff>;
+    ushort data_len_3<fgcolor=0xa0f0a0>;
+    ubyte tag_3<fgcolor=0x04e404>;
+    ushort seq_id;
+    Vector2 target_pos;
+    Vector2 velocity;
+};
+
+enum <ubyte> PrefabType {
+    ShipStatusPrefab = 0,
+    MeetingHubPrefab,
+    LobbyPrefab,
+    GameDataPrefab,
+    PlayerPrefab,
+    HeadQuartersPrefab,
+};
+
+typedef struct ShipStatus(uint init) {
+    PackedInt net_id<fgcolor=0xff00ff>;
+    ushort data_len<fgcolor=0xa0f0a0>;
+    ubyte tag<fgcolor=0x04e404>;
+    // Reactor
+    float reactor_countdown;
+    PackedInt user_console_pair_count;
+    local uint i;
+    for (i = 0; i < user_console_pair_count.value; i++) {
+        ubyte user;
+        ubyte console;
+    }
+
+    // Switch
+    ubyte expected_switches;
+    ubyte actual_switches;
+    ubyte elec_value;
+
+    // Life Support
+    float life_supp_countdown;
+    PackedInt completed_consoles_count;
+    if (completed_consoles_count.value > 0){
+        PackedInt completed_consoles[completed_consoles_count.value]<optimize=false>;
+    }
+
+    // MedScan
+    PackedInt user_count;
+    if (user_count.value > 0) {
+        byte user_list[user_count.value];
+    }
+
+    // SecurityCamera
+    byte in_use;
+
+    // Comms
+    byte is_active;
+
+    // Doors
+    byte door_open[13];
+
+    // Sabotage
+    float timer;
+};
+
+typedef struct MeetingHub(uint init) {
+    PackedInt net_id<fgcolor=0xff00ff>;
+    ushort data_len<fgcolor=0xa0f0a0>;
+    ubyte tag<fgcolor=0x04e404>;
+};
+
+typedef struct Lobby(uint init) {
+    PackedInt net_id<fgcolor=0xff00ff>;
+    ushort data_len<fgcolor=0xa0f0a0>;
+    ubyte tag<fgcolor=0x04e404>;
+};
+
+typedef struct HeadQuarters(uint init) {
+    PackedInt net_id<fgcolor=0xff00ff>;
+    ushort data_len<fgcolor=0xa0f0a0>;
+    ubyte tag<fgcolor=0x04e404>;
+};
+
+typedef struct GameInfoInner {
+    ushort length<fgcolor=0x4499ee>;
+    GameInfoType tag<fgcolor=0x006fff>;
+    local uint end = FTell() + length;
+    switch (tag) {
+        case UpdateData:
+            // Update data
+            PackedInt net_id<fgcolor=0xff00ff>;
+            break;
+        case RPC:
+            // RPC
+            PackedInt net_id<fgcolor=0xff00ff>;
+            byte call_id;
+            break;
+        case CreateFromPrefab:
+            // Create from prefab
+            PackedInt prefab_id;
+            PackedInt owner_id;
+            ubyte spawn_flags;
+            PackedInt num_components_in_children;
+            switch (prefab_id.value) {
+                case ShipStatusPrefab:
+                    ShipStatus ship_status(1);
+                    break;
+                case MeetingHubPrefab:
+                    MeetingHub meeting_hub(1);
+                    break;
+                case LobbyPrefab:
+                    Lobby lobby(1);
+                    break;
+                case GameDataPrefab:
+                    GameData game_data(1);
+                    break;
+                case PlayerPrefab:
+                    PlayerInfo player_info(1);
+                    break;
+                case HeadQuartersPrefab:
+                    byte error[-1];
+                    HeadQuarters head_quarters(1);
+                    break;
+                default:
+                    if (num_components_in_children.value != 0) {
+                        InnerNetObj inner_net_obj[num_components_in_children.value]<optimize=false>;
+                    }
+                    break;
+            }
+            break;
+        case Destroy:
+            // Destroy
+            PackedInt net_id<fgcolor=0xff00ff>;
+            break;
+        case ChangeScene:
+            // Change scene
+            PackedInt client_id;
+            String new_scene;
+            break;
+        case ClientReady:
+            // Client ready
+            PackedInt client_id;
+        default:
+            break;
+    }
+    if (FTell() < end) {
+        ubyte skipped[end - FTell()]<fgcolor=0x00bbbb>;
+    }
+};
+
+typedef struct GameInfoPacket {
+    char game_id[4];
+    while (FTell() < au_packet_end) {
+        GameInfoInner game_info_inner;
+    }
+};
+
+typedef struct GameInfo2Packet {
+    char game_id[4];
+    PackedInt client_id;
+    while (FTell() < au_packet_end) {
+        GameInfoInner game_info_inner;
+    }
+};
+
+
+typedef struct GameListing {
+    ushort length;
+    byte tag;
+    ubyte ip[4];
+    ushort port;
+    uint game_id;
+    String host_name;
+    ubyte player_count;
+    PackedInt age;
+    ubyte map_id<fgcolor=0xffff00>;
+    ubyte num_imposters;
+    ubyte max_players;
+};
+
+typedef struct GameListPacket {
+    local uint inner_end;
+    while (FTell() < au_packet_end) {
+        ushort length;
+        byte tag;
+        inner_end = FTell() + length;
+        while (FTell() < inner_end) {
+            if (tag == 0) {
+                GameListing gameListing;
+            } else {
+                ubyte error[-1];
+            }
+        }
+    }
+};
+
+typedef struct RequestGameListPacket {
+    ubyte show_private;
+    PackedInt data_size;
+    GameOptionsData data;
+};
+
+
+enum <ubyte> PacketType {
+    DisconnectReason = 0x01,
+    JoinGame = 0x01,
+    PlayerLeft = 0x04,
+    GameInfo = 0x05,
+    GameInfo2 = 0x06,
+    JoinedGame = 0x07,
+    GameList = 0x10,
+    AlterGameInfo = 0x0a,
+    ChangeServer = 0x0d,
+    ServerInfoT= 0x0e,
+};
+
+typedef struct PlayerLeftPacket {
+    uint game_id;
+    uint player_id_who_left;
+    uint host_id;
+    byte dc_reason;
+};
+
+typedef struct AmongUsPacket {
+    ushort length<fgcolor=0xff8888>;
+    PacketType type<fgcolor=0xff2222>;
+    au_packet_end = FTell() + length;
+    switch (type) {
+        case 0x01:
+            if (to_server) {
+                JoinServerPacket joinServerPacket;
+            } else {
+                if (ReadByte() < 0x0e) {
+                    DisconnectReasonPacket disconnectReasonPacket;
+                } else {
+                    PlayerJoinedPacket playerJoinedPacket;
+                }
+            }
+            break;
+        case GameList:
+            if (to_server) {
+                RequestGameListPacket requestGameListPacket;
+            } else {
+                if (length == 1) {
+                    ubyte should_be_0;
+                } else {
+                    GameListPacket gameListPacket;
+                }
+            }
+            break;
+        case ServerInfoT:
+            ServerListPacket serverListPacket;
+            break;
+        case ChangeServer:
+            ChangeServerPacket changeServerPacket;
+            break;
+        case JoinedGame:
+            JoinedGamePacket joinedGamePacket;
+            break;
+        case AlterGameInfo:
+            AlterGameInfoPacket alter_game_info_packet;
+            break;
+        case GameInfo:
+            GameInfoPacket game_info_packet;
+            break;
+        case GameInfo2:
+            GameInfo2Packet game_info_2_packet;
+            break;
+        case PlayerLeft:
+            PlayerLeftPacket player_left_packet;
+            break;
+        default:
+            break;
+    }
+    if ((au_packet_end - FTell()) > 0) {
+        ubyte skipped[au_packet_end - FTell()]<fgcolor=0x00bbbb>;
+    } 
+};
+
+/// Hazel structs
+
+enum <ubyte> HazelType {
+    Unreliable = 0x00,
+    Reliable = 0x01,
+    Hello = 0x08,
+    Disconnect = 0x09,
+    Acknowledge = 0x0a,
+    KeepAlive = 0x0c,
+};
+
+local uint packet_end;
+typedef struct HazelPacket {
+    // Read hazel data
+    HazelType hazel_type<fgcolor=0x888888>;
+    switch (hazel_type) {
+        case 0x00:
+            // Unreliable
+            while (FTell() < packet_end) {
+                AmongUsPacket au_packet;
+            }
+            break;
+        case 0x01:
+            // Reliable
+            BigEndian();
+            ushort ack_id<fgcolor=0x666666>;
+            LittleEndian();
+            while (FTell() < packet_end) {
+                AmongUsPacket au_packet;
+            }
+            break;
+        case 0x08:
+            // Hello
+            BigEndian();
+            ushort ack_id<fgcolor=0x666666>;
+            LittleEndian();
+            byte unknown;
+            uint game_version;
+            String username;
+            break;
+        case 0x09:
+            // Disconnect
+            break;
+        case 0x0a:
+            // Acknowledge
+            BigEndian();
+            ushort ack_id<fgcolor=0x666666>;
+            LittleEndian();
+            ubyte missing_flags<fgcolor=0x666666>;
+            break;
+        case 0x0c:
+            // Keep-Alive
+            BigEndian();
+            ushort ack_id<fgcolor=0x666666>;
+            LittleEndian();
+            break;
+        default:
+            break;
+    }
+};
+
+/// dump-transformer data
+
+typedef struct UDPPacket {
+    // Color header
+    if (ReadByte() == 0x01) {
+        SetForeColor(0x00bb00);
+        
+    } else {
+        SetForeColor(0x0000bb);
+    }
+    // Read header
+    ubyte to_server<bgcolor=0x000000>;
+    to_server_loc = to_server;
+    SetForeColor(0xFFFFFF);
+    uint data_len<fgcolor=0x555555,bgcolor=0x000000>;
+    uint padded_len<fgcolor=0x555555,bgcolor=0x000000>;
+    ubyte padding[7]<fgcolor=0x555555,bgcolor=0x000000>;
+    // Calculate positions
+    local uint end_pos = FTell() + data_len;
+    packet_end = end_pos;
+    // Read packet
+    HazelPacket hazelPacket;
+    // Skip/color unread data
+    if (end_pos - FTell() != 0) { // Supress warnings
+        ubyte unread[end_pos - FTell()]<optimize=false,fgcolor=0x00bbbb>;
+    }
+    // Color padding
+    ubyte padding2[padded_len - data_len]<optimize=false,fgcolor=0x555555,bgcolor=0x000000>;
+};
+
+/// Entry point
+/// At the bottom because C style language so can't read any definitions below
+/// Dude C lmao
+
+while (!FEof()) {
+    UDPPacket udpPacket;
+}

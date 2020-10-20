@@ -1,0 +1,22 @@
+[package]
+name = "client"
+version = "0.1.0"
+authors = ["camas <camas@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+common = { path = "../common" }
+# Reading binary data
+byteorder = "*"
+# Random numbers
+rand = { version = "*", features = ["small_rng"] }
+# Logging
+log = "*"
+flexi_logger = "*"
+# Gui
+imgui = { git = "https://github.com/luke-titley/imgui-docking-rs.git", branch = "docking" }
+glium = "0.27"
+imgui-glium-renderer = { git = "https://github.com/luke-titley/imgui-docking-rs.git", branch = "docking" }
+imgui-winit-support = { git = "https://github.com/luke-titley/imgui-docking-rs.git", branch = "docking" }

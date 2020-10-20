@@ -1,0 +1,15 @@
+[package]
+name = "dissector"
+version = "0.1.0"
+authors = ["camas <camas@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+epan-sys = { path = "../epan-sys" }
+common = { path = "../common" }
+byte-strings = "*"

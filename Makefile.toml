@@ -1,0 +1,10 @@
+[tasks.build]
+command = "cargo"
+args = ["build"]
+workspace = false
+
+[tasks.install-dev]
+command = "cp"
+args = ["target/debug/libdissector.so", "${HOME}/.local/lib/wireshark/plugins/3.2/epan/among-us.so"]
+dependencies = ["build"]
+workspace = false
